@@ -35,8 +35,10 @@ class HTTPResponse(object):
 
 class HTTPClient(object):
     def get_host_port(self,url):
+        # Use urllib.parse.urlparse to extract the host and port from the URL
         url = urllib.parse.urlparse(url)
         port = url.port
+        # If the port is not specified, use the default HTTP port (80)
 
         if port is None:
             port = 80
@@ -45,6 +47,8 @@ class HTTPClient(object):
 
         return host, port
     def get_path(self, url):
+        # Use urllib.parse.urlparse to extract the path from the URL
+
         url = urllib.parse.urlparse(url)
         path = url.path
         if not path:
@@ -97,8 +101,11 @@ class HTTPClient(object):
     def GET(self, url, args=None):
         code = 500
         body = ""
+        # Extract the host and port from the URL
 
         host, port = self.get_host_port(url)
+        # Extract the path from the URL
+
         path = self.get_path(url)
 
         # connecting
@@ -111,7 +118,8 @@ class HTTPClient(object):
         self.sendall(result_url)
 
         received_data = (self.recvall(self.socket))
-        
+        # Extract the HTTP status code and response body from the received data using the get_code and get_body functions
+
         code = self.get_code(received_data)
         body = self.get_body(received_data)
         
@@ -131,16 +139,17 @@ class HTTPClient(object):
         except:
             return HTTPResponse(404)
 
+        # If args is None, set it to an empty string
         if not args:
             args = "" 
         else:
             args = urllib.parse.urlencode(args)
-
+        # Construct the POST request string to be sent
         result_url = f'POST {path} HTTP/1.1\r\nHost: {host}\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: {(len(args))}\r\nConnection: close\r\n\r\n{args}'
         self.sendall(result_url)
 
         received_data = (self.recvall(self.socket))
-          
+        # Extract the HTTP status code and response body from the received data using the get_code and get_body functions
         code = self.get_code(received_data)
         body = self.get_body(received_data)
         
