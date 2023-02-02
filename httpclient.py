@@ -21,6 +21,7 @@
 import sys
 import socket
 import re
+
 # you may use urllib to encode data appropriately
 import urllib.parse
 
@@ -33,7 +34,27 @@ class HTTPResponse(object):
         self.body = body
 
 class HTTPClient(object):
-    #def get_host_port(self,url):
+    def get_host_port(self,url):
+        url = urllib.parse.urlparse(url)
+        port = url.port
+
+        if port is None:
+            port = 80
+        
+        host = url.hostname
+
+        return host, port
+    def get_path(self, url):
+        url = urllib.parse.urlparse(url)
+        path = url.path
+        if not path:
+            return "/"
+        return path
+
+    def connect(self, host, port):
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.connect((host, port))
+        return None
 
     def connect(self, host, port):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -41,12 +62,18 @@ class HTTPClient(object):
         return None
 
     def get_code(self, data):
+        status_code = int(data.split()[1])
+
         return None
 
     def get_headers(self,data):
+        header = data.split('\r\n\r\n')[0]
+
         return None
 
     def get_body(self, data):
+        body = data.split('\r\n\r\n')[1]
+
         return None
     
     def sendall(self, data):
@@ -70,11 +97,54 @@ class HTTPClient(object):
     def GET(self, url, args=None):
         code = 500
         body = ""
+
+        host, port = self.get_host_port(url)
+        path = self.get_path(url)
+
+        # connecting
+        try:
+            self.connect(host, port)
+        except:
+            return HTTPResponse(404)
+        
+        result_url = f'GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n'
+        self.sendall(result_url)
+
+        received_data = (self.recvall(self.socket))
+        
+        code = self.get_code(received_data)
+        body = self.get_body(received_data)
+        
+        self.close()
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
         code = 500
         body = ""
+
+        host, port = self.get_host_port(url)
+        path = self.extract_path(url)
+            
+        # connecting
+        try:
+            self.connect(host, port)
+        except:
+            return HTTPResponse(404)
+
+        if not args:
+            args = "" 
+        else:
+            args = urllib.parse.urlencode(args)
+
+        result_url = f'POST {path} HTTP/1.1\r\nHost: {host}\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: {(len(args))}\r\nConnection: close\r\n\r\n{args}'
+        self.sendall(result_url)
+
+        received_data = (self.recvall(self.socket))
+          
+        code = self.get_code(received_data)
+        body = self.get_body(received_data)
+        
+        self.close()
         return HTTPResponse(code, body)
 
     def command(self, url, command="GET", args=None):
